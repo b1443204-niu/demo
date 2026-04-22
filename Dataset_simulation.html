@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+ <html lang="zh-TW">
+ <head>
+  <meta charset="utf-8">
+  <script src=""></script>
+</head>
+ <body>
+  <section id="movie-section">
+    <h2>電影、動畫清單</h2>
+    <table id = "movie-list" border="1">
+        <thead>
+            <tr>
+                <th>record_id</th>
+                <th>名稱</th>
+                <th>評分</th>
+                <th>題材</th>
+                <th>進度</th>
+                <th>備註</th>
+            </tr>
+        </thead>
+        <script>
+        </script>
+        <tbody id="movie-data">
+        </tbody>
+    </table>
+</section>
+  <section id="book-section">
+    <h2>電影、動畫清單</h2>
+    <table id = "book-list" border="1">
+        <thead>
+            <tr>
+                <th>record_id</th>
+                <th>名稱</th> 
+                <th>ISBN</th>
+                <th>評分</th>
+                <th>題材</th>
+                <th>進度</th>
+                <th>備註</th>
+            </tr>
+        </thead>
+        <script>
+        </script>
+        <tbody id="book-data">
+        </tbody>
+    </table>
+</section>
+</section>
+  <section id="course-section">
+    <h2>線上課程清單</h2>
+    <table id = "course-list" border="1">
+        <thead>
+            <tr>
+                <th>record_id</th>
+                <th>名稱</th> 
+                <th>平台</th>
+                <th>講師</th>
+                <th>評分</th>
+                <th>題材</th>
+                <th>進度</th>
+                <th>連結</th>
+                <th>備註</th>
+            </tr>
+        </thead>
+        <script>
+        </script>
+        <tbody id="course-data">
+        </tbody>
+    </table>
+</section>
+</section>
+  <section id="paper-section">
+    <h2>論文清單</h2>
+    <table id = "paper-list" border="1">
+        <thead>
+            <tr>
+                <th>record_id</th>
+                <th>名稱</th> 
+                <th>年分</th>
+                <th>DOI</th>
+                <th>重要摘要</th>
+                <th>實作參考價值</th>
+                <th>備註</th>
+            </tr>
+        </thead>
+        <script>
+        </script>
+        <tbody id="paper-data">
+        </tbody>
+    </table>
+</section>
+    <h2>新增項目
+    </h2>
+ <label for="keyword">xx:</label>
+ <input type="text" id="create-input-brand" name="q">
+  <br><br>
+   <label for="keyword">yy:</label>
+ <input type="text" id="create-input-year" name="q">
+  <br><br>
+
+   <label for="keyword">zz:</label>
+ <input type="text" id="create-input-color" name="q">
+  <br><br>
+ <input type="submit" onclick = createCar() value="新增">
+     <h2>修改項目</h2>
+  <label for="keyword">id:</label>
+ <input type="text" id="modify-input-id" name="q">
+  <br><br>
+ <input type="submit" onclick = ready_for_modify() value="確定id">
+   <br><br>
+ <label for="keyword">xx:</label>
+ <input type="text" id="modify-input-brand" name="q">
+  <br><br>
+   <label for="keyword">yy:</label>
+ <input type="text" id="modify-input-year" name="q">
+  <br><br>
+   <label for="keyword">zz:</label>
+ <input type="text" id="modify-input-color" name="q">
+  <br><br>
+ <input type="submit" onclick = modify_Car() value="修改">
+     <h2>刪除項目</h2>
+  <label for="keyword">id:</label>
+ <input type="text" id="delete-input-id" name="q">
+  <br><br>
+ <input type="submit" onclick = delete_car() value="確定刪除">
+ </body>
+</html>
