@@ -1,0 +1,83 @@
+BEGIN;
+
+CREATE SCHEMA dataset;
+
+-- 若重複執行，先刪除舊表
+DROP TABLE IF EXISTS dataset.movies CASCADE;
+DROP TABLE IF EXISTS dataset.books CASCADE;
+DROP TABLE IF EXISTS dataset.courses CASCADE;
+DROP TABLE IF EXISTS dataset.papers CASCADE;
+DROP TABLE IF EXISTS dataset.Status CASCADE;
+
+-- =====================================================
+-- 1. movie
+-- =====================================================
+CREATE TABLE niu.movie (
+    movie_id        INT PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
+    movie_name      VARCHAR(50) NOT NULL,
+    movie_rating  INT
+    movie_genre
+    status INT
+    movie_remark
+
+);
+
+-- =====================================================
+-- 2. books
+-- =====================================================
+CREATE TABLE niu.books (
+    book_id        INT PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
+    book_name      VARCHAR(50) NOT NULL,
+    ISBN
+    book_rating  INT
+    book_genre
+    status INT
+    book_remark
+     
+);
+
+-- =====================================================
+-- 3. courses  
+-- 平台跟講師考慮獨立列表
+-- =====================================================
+CREATE TABLE niu.courses (
+    course_id        INT PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
+    course_name      VARCHAR(50) NOT NULL,
+    instructor_id
+    platform_id
+    course_rating  INT
+    course_genre
+    status INT
+    course_link
+    course_remark
+
+);
+
+-- =====================================================
+-- 4. papers   類型仍在考慮是否使用
+-- =====================================================
+CREATE TABLE niu.papers (
+    paper_id        INT PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
+    paper_name      VARCHAR(50) NOT NULL,
+    paper_year
+    DOI
+    paper_rating  INT
+    paper_link
+    paper_genre
+    status INT
+    paper_summary
+    paper_remark
+);
+-- =====================================================
+-- 5. Status
+-- =====================================================
+CREATE TABLE niu.Status (
+    id INT PRIMARY KEY GENERATED ALWAYS AS IDENTITY, 
+    status_name
+    status_remark
+);
+-- =====================================================
+-- 插入假資料
+-- =====================================================
+
+COMMIT;
