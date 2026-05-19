@@ -1,0 +1,392 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Read & Watch Tracker</title>
+    <style>
+      :root {
+        color-scheme: light;
+        font-family:
+          system-ui,
+          -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          sans-serif;
+        --bg: #f6f4ef;
+        --panel: #fffdf8;
+        --text: #28231f;
+        --muted: #756d63;
+        --brand: #6f4e37;
+        --line: #e7ded2;
+        --ok: #2f7d4f;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+      }
+
+      header {
+        padding: 32px 20px 16px;
+        text-align: center;
+      }
+
+      h1 {
+        margin: 0 0 8px;
+        font-size: clamp(28px, 5vw, 44px);
+      }
+
+      main {
+        width: min(1120px, calc(100% - 32px));
+        margin: 0 auto 48px;
+        display: grid;
+        gap: 20px;
+      }
+
+      section,
+      article {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 18px;
+        padding: 18px;
+        box-shadow: 0 14px 36px rgb(80 55 35 / 8%);
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 12px;
+      }
+
+      label {
+        display: grid;
+        gap: 6px;
+        color: var(--muted);
+        font-size: 14px;
+      }
+
+      input,
+      select,
+      textarea,
+      button {
+        width: 100%;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 10px 12px;
+        font: inherit;
+      }
+
+      textarea {
+        min-height: 84px;
+        resize: vertical;
+      }
+
+      button {
+        cursor: pointer;
+        border: 0;
+        background: var(--brand);
+        color: white;
+        font-weight: 700;
+      }
+
+      button.secondary {
+        background: #ece3d8;
+        color: var(--text);
+      }
+
+      .toolbar {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+        gap: 10px;
+      }
+
+      .cards {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+        gap: 14px;
+      }
+
+      .card h3 {
+        margin: 0 0 8px;
+      }
+
+      .meta,
+      .tags,
+      .dashboard {
+        color: var(--muted);
+        font-size: 14px;
+      }
+
+      .tags {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-top: 10px;
+      }
+
+      .tag {
+        border-radius: 999px;
+        padding: 4px 8px;
+        background: #efe6dc;
+      }
+
+      .actions {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+        margin-top: 12px;
+      }
+
+      .ok {
+        color: var(--ok);
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>Read & Watch Tracker</h1>
+      <p>集中管理書籍、影片、課程與文獻紀錄。</p>
+    </header>
+
+    <main>
+      <section>
+        <h2>新增 / 編輯紀錄</h2>
+        <form id="record-form" class="grid">
+          <label>
+            類型
+            <select name="record_type" required>
+              <option value="book">書籍</option>
+              <option value="movie">影片</option>
+              <option value="course">課程</option>
+              <option value="paper">文獻/論文</option>
+            </select>
+          </label>
+          <label>
+            Record ID
+            <input name="record_id" placeholder="B001" required />
+          </label>
+          <label>
+            標題
+            <input name="title" placeholder="原子習慣" required />
+          </label>
+          <label>
+            評分
+            <select name="rating">
+              <option value="">未評分</option>
+              <option value="1">★</option>
+              <option value="2">★★</option>
+              <option value="3">★★★</option>
+              <option value="4">★★★★</option>
+              <option value="5">★★★★★</option>
+            </select>
+          </label>
+          <label>
+            題材 / 類型
+            <input name="genre" placeholder="心理學" />
+          </label>
+          <label>
+            進度
+            <select name="status">
+              <option value="想讀/想看">想讀/想看</option>
+              <option value="進行中">進行中</option>
+              <option value="完成">完成</option>
+            </select>
+          </label>
+          <label>
+            標籤（逗號分隔）
+            <input name="tags" placeholder="心理,療癒" />
+          </label>
+          <label>
+            ISBN / DOI / 連結
+            <input name="reference" placeholder="978957137731" />
+          </label>
+          <label>
+            平台
+            <input name="platform" placeholder="Coursera" />
+          </label>
+          <label>
+            講師
+            <input name="instructor" placeholder="Andrew Ng" />
+          </label>
+          <label>
+            年份
+            <input name="year" type="number" min="0" placeholder="2023" />
+          </label>
+          <label>
+            實作參考價值
+            <input name="implementation_value" placeholder="高" />
+          </label>
+          <label style="grid-column: 1 / -1">
+            備註 / 心得
+            <textarea name="remark" placeholder="寫下心得、摘要或下一步"></textarea>
+          </label>
+          <button type="submit">儲存紀錄</button>
+          <button class="secondary" type="reset">清空表單</button>
+        </form>
+        <p id="message" class="ok"></p>
+      </section>
+
+      <section>
+        <h2>搜尋與篩選</h2>
+        <div class="toolbar">
+          <input id="keyword" placeholder="搜尋標題" />
+          <input id="tag" placeholder="標籤" />
+          <input id="genre" placeholder="題材" />
+          <select id="status">
+            <option value="">全部進度</option>
+            <option value="想讀/想看">想讀/想看</option>
+            <option value="進行中">進行中</option>
+            <option value="完成">完成</option>
+          </select>
+          <select id="record-type">
+            <option value="">全部類型</option>
+            <option value="book">書籍</option>
+            <option value="movie">影片</option>
+            <option value="course">課程</option>
+            <option value="paper">文獻/論文</option>
+          </select>
+          <button id="search-button" type="button">查詢</button>
+        </div>
+      </section>
+
+      <section class="dashboard" id="dashboard">載入儀表板中...</section>
+      <section>
+        <h2>紀錄清單</h2>
+        <div id="cards" class="cards"></div>
+      </section>
+    </main>
+
+    <script>
+      const apiBase = "";
+      const form = document.querySelector("#record-form");
+      const cards = document.querySelector("#cards");
+      const message = document.querySelector("#message");
+      const dashboard = document.querySelector("#dashboard");
+
+      const qs = (id) => document.querySelector(id).value.trim();
+      const stars = (rating) => (rating ? "★".repeat(Number(rating)) : "未評分");
+
+      function payloadFromForm(formData) {
+        const type = formData.get("record_type");
+        const reference = formData.get("reference").trim();
+        const payload = {
+          record_id: formData.get("record_id").trim(),
+          title: formData.get("title").trim(),
+          rating: formData.get("rating") ? Number(formData.get("rating")) : null,
+          genre: formData.get("genre").trim(),
+          status: formData.get("status"),
+          remark: formData.get("remark").trim(),
+          tags: formData
+            .get("tags")
+            .split(",")
+            .map((tag) => tag.trim())
+            .filter(Boolean),
+          platform: formData.get("platform").trim() || null,
+          instructor: formData.get("instructor").trim() || null,
+          year: formData.get("year") ? Number(formData.get("year")) : null,
+          implementation_value:
+            formData.get("implementation_value").trim() || null,
+        };
+        if (type === "book") payload.isbn = reference || null;
+        if (type === "course") payload.url = reference || null;
+        if (type === "paper") payload.doi_or_url = reference || null;
+        return { type, payload };
+      }
+
+      async function saveRecord(event) {
+        event.preventDefault();
+        const { type, payload } = payloadFromForm(new FormData(form));
+        const response = await fetch(`${apiBase}/api/records/${type}`, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        const data = await response.json();
+        message.textContent = response.ok
+          ? `已儲存 ${data.record_id}`
+          : `錯誤：${data.error}`;
+        if (response.ok) {
+          form.reset();
+          await refresh();
+        }
+      }
+
+      async function deleteRecord(type, id) {
+        await fetch(`${apiBase}/api/records/${type}/${id}`, { method: "DELETE" });
+        await refresh();
+      }
+
+      async function loadRecords() {
+        const params = new URLSearchParams();
+        for (const [key, value] of [
+          ["keyword", qs("#keyword")],
+          ["tag", qs("#tag")],
+          ["genre", qs("#genre")],
+          ["status", qs("#status")],
+          ["record_type", qs("#record-type")],
+        ]) {
+          if (value) params.set(key, value);
+        }
+        const response = await fetch(`${apiBase}/api/records?${params}`);
+        const data = await response.json();
+        cards.innerHTML = data.items
+          .map(
+            (record) => `
+              <article class="card">
+                <h3>${record.title}</h3>
+                <div class="meta">
+                  ${record.record_type} / ${record.record_id}<br />
+                  ${stars(record.rating)} · ${record.genre || "未分類"} · ${record.status}
+                </div>
+                <p>${record.remark || "尚無心得"}</p>
+                <div class="tags">
+                  ${(record.tags || [])
+                    .map((tag) => `<span class="tag">${tag}</span>`)
+                    .join("")}
+                </div>
+                <div class="actions">
+                  <button class="secondary" onclick="deleteRecord('${record.record_type}', '${record.record_id}')">刪除</button>
+                  <button onclick="markDone('${record.record_type}', '${record.record_id}')">完成</button>
+                </div>
+              </article>
+            `,
+          )
+          .join("");
+      }
+
+      async function markDone(type, id) {
+        await fetch(`${apiBase}/api/records/${type}/${id}`, {
+          method: "PATCH",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ status: "完成" }),
+        });
+        await refresh();
+      }
+
+      async function loadDashboard() {
+        const response = await fetch(`${apiBase}/api/dashboard`);
+        const data = await response.json();
+        dashboard.innerHTML = `
+          <strong>總紀錄：</strong>${data.total}
+          <strong>進度：</strong>${JSON.stringify(data.by_status)}
+          <strong>類型：</strong>${JSON.stringify(data.by_type)}
+          <strong>高評分：</strong>${data.high_rated.join(", ") || "無"}
+        `;
+      }
+
+      async function refresh() {
+        await Promise.all([loadRecords(), loadDashboard()]);
+      }
+
+      form.addEventListener("submit", saveRecord);
+      document.querySelector("#search-button").addEventListener("click", refresh);
+      refresh();
+    </script>
+  </body>
+</html>
