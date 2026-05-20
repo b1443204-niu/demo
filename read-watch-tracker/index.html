@@ -20,6 +20,7 @@
         --brand: #6f4e37;
         --line: #e7ded2;
         --ok: #2f7d4f;
+        --warn: #9a3412;
       }
 
       * {
@@ -100,6 +101,11 @@
         color: var(--text);
       }
 
+      button:disabled {
+        opacity: 0.55;
+        cursor: not-allowed;
+      }
+
       .toolbar {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
@@ -108,12 +114,16 @@
 
       .cards {
         display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+        grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
         gap: 14px;
       }
 
       .card h3 {
         margin: 0 0 8px;
+      }
+
+      .card.editing {
+        outline: 2px solid var(--brand);
       }
 
       .meta,
@@ -134,17 +144,53 @@
         border-radius: 999px;
         padding: 4px 8px;
         background: #efe6dc;
+        cursor: pointer;
       }
 
       .actions {
         display: grid;
-        grid-template-columns: 1fr 1fr;
+        grid-template-columns: repeat(3, 1fr);
         gap: 8px;
         margin-top: 12px;
       }
 
       .ok {
         color: var(--ok);
+      }
+
+      .err {
+        color: var(--warn);
+      }
+
+      .stats {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+        gap: 10px;
+        margin-top: 10px;
+      }
+
+      .stat {
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 10px;
+        background: #faf6f0;
+      }
+
+      .stat strong {
+        display: block;
+        font-size: 22px;
+        color: var(--text);
+      }
+
+      .hidden {
+        display: none !important;
+      }
+
+      .row-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 8px;
       }
     </style>
   </head>
@@ -156,7 +202,7 @@
 
     <main>
       <section>
-        <h2>新增 / 編輯紀錄</h2>
+        <h2 id="form-title">新增紀錄</h2>
         <form id="record-form" class="grid">
           <label>
             類型
@@ -202,31 +248,44 @@
             標籤（逗號分隔）
             <input name="tags" placeholder="心理,療癒" />
           </label>
-          <label>
-            ISBN / DOI / 連結
+          <label class="type-field" data-types="book">
+            ISBN
             <input name="reference" placeholder="978957137731" />
           </label>
-          <label>
+          <label class="type-field hidden" data-types="course">
+            課程連結
+            <input name="course_url" placeholder="https://..." />
+          </label>
+          <label class="type-field hidden" data-types="paper">
+            DOI / 連結
+            <input name="paper_ref" placeholder="10.48550/arXiv..." />
+          </label>
+          <label class="type-field hidden" data-types="course">
             平台
             <input name="platform" placeholder="Coursera" />
           </label>
-          <label>
+          <label class="type-field hidden" data-types="course">
             講師
             <input name="instructor" placeholder="Andrew Ng" />
           </label>
-          <label>
+          <label class="type-field hidden" data-types="paper">
             年份
             <input name="year" type="number" min="0" placeholder="2023" />
           </label>
-          <label>
+          <label class="type-field hidden" data-types="paper">
             實作參考價值
             <input name="implementation_value" placeholder="高" />
+          </label>
+          <label class="type-field hidden" data-types="paper" style="grid-column: 1 / -1">
+            重要摘要
+            <textarea name="key_takeaways" placeholder="Key takeaways"></textarea>
           </label>
           <label style="grid-column: 1 / -1">
             備註 / 心得
             <textarea name="remark" placeholder="寫下心得、摘要或下一步"></textarea>
           </label>
-          <button type="submit">儲存紀錄</button>
+          <button type="submit" id="submit-btn">儲存紀錄</button>
+          <button class="secondary" type="button" id="cancel-edit" hidden>取消編輯</button>
           <button class="secondary" type="reset">清空表單</button>
         </form>
         <p id="message" class="ok"></p>
@@ -252,10 +311,15 @@
             <option value="paper">文獻/論文</option>
           </select>
           <button id="search-button" type="button">查詢</button>
+          <button class="secondary" id="seed-button" type="button">載入範例資料</button>
         </div>
       </section>
 
-      <section class="dashboard" id="dashboard">載入儀表板中...</section>
+      <section id="dashboard-panel">
+        <h2>儀表板</h2>
+        <div id="dashboard" class="dashboard">載入中...</div>
+      </section>
+
       <section>
         <h2>紀錄清單</h2>
         <div id="cards" class="cards"></div>
@@ -268,13 +332,39 @@
       const cards = document.querySelector("#cards");
       const message = document.querySelector("#message");
       const dashboard = document.querySelector("#dashboard");
+      const formTitle = document.querySelector("#form-title");
+      const submitBtn = document.querySelector("#submit-btn");
+      const cancelEditBtn = document.querySelector("#cancel-edit");
+      let editing = null;
+
+      const TYPE_LABEL = {
+        book: "書籍",
+        movie: "影片",
+        course: "課程",
+        paper: "文獻",
+      };
 
       const qs = (id) => document.querySelector(id).value.trim();
       const stars = (rating) => (rating ? "★".repeat(Number(rating)) : "未評分");
 
+      function escapeHtml(value) {
+        return String(value ?? "")
+          .replaceAll("&", "&amp;")
+          .replaceAll("<", "&lt;")
+          .replaceAll(">", "&gt;")
+          .replaceAll('"', "&quot;");
+      }
+
+      function syncTypeFields() {
+        const type = form.record_type.value;
+        document.querySelectorAll(".type-field").forEach((node) => {
+          const types = node.dataset.types.split(",");
+          node.classList.toggle("hidden", !types.includes(type));
+        });
+      }
+
       function payloadFromForm(formData) {
         const type = formData.get("record_type");
-        const reference = formData.get("reference").trim();
         const payload = {
           record_id: formData.get("record_id").trim(),
           title: formData.get("title").trim(),
@@ -287,39 +377,130 @@
             .split(",")
             .map((tag) => tag.trim())
             .filter(Boolean),
-          platform: formData.get("platform").trim() || null,
-          instructor: formData.get("instructor").trim() || null,
-          year: formData.get("year") ? Number(formData.get("year")) : null,
-          implementation_value:
-            formData.get("implementation_value").trim() || null,
         };
-        if (type === "book") payload.isbn = reference || null;
-        if (type === "course") payload.url = reference || null;
-        if (type === "paper") payload.doi_or_url = reference || null;
+        if (type === "book") {
+          const isbn = formData.get("reference").trim();
+          if (isbn) payload.isbn = isbn;
+        }
+        if (type === "course") {
+          const platform = formData.get("platform").trim();
+          const instructor = formData.get("instructor").trim();
+          const url = formData.get("course_url").trim();
+          if (platform) payload.platform = platform;
+          if (instructor) payload.instructor = instructor;
+          if (url) payload.url = url;
+        }
+        if (type === "paper") {
+          const doi = formData.get("paper_ref").trim();
+          const year = formData.get("year");
+          const summary = formData.get("key_takeaways").trim();
+          const impl = formData.get("implementation_value").trim();
+          if (doi) payload.doi_or_url = doi;
+          if (year) payload.year = Number(year);
+          if (summary) payload.key_takeaways = summary;
+          if (impl) payload.implementation_value = impl;
+        }
         return { type, payload };
+      }
+
+      function setEditing(record) {
+        editing = record
+          ? { record_type: record.record_type, record_id: record.record_id }
+          : null;
+        formTitle.textContent = editing ? "編輯紀錄" : "新增紀錄";
+        submitBtn.textContent = editing ? "更新紀錄" : "儲存紀錄";
+        form.record_type.disabled = Boolean(editing);
+        form.record_id.readOnly = Boolean(editing);
+        cancelEditBtn.hidden = !editing;
+      }
+
+      function fillForm(record) {
+        form.record_type.value = record.record_type;
+        form.record_id.value = record.record_id;
+        form.title.value = record.title || "";
+        form.rating.value = record.rating ? String(record.rating) : "";
+        form.genre.value = record.genre || "";
+        form.status.value = record.status || "想讀/想看";
+        form.tags.value = (record.tags || []).join(", ");
+        form.remark.value = record.remark || "";
+        form.reference.value = record.isbn || "";
+        form.course_url.value = record.url || "";
+        form.paper_ref.value = record.doi_or_url || "";
+        form.platform.value = record.platform || "";
+        form.instructor.value = record.instructor || "";
+        form.year.value = record.year ?? "";
+        form.key_takeaways.value = record.key_takeaways || "";
+        form.implementation_value.value = record.implementation_value || "";
+        syncTypeFields();
+        setEditing(record);
+        form.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+
+      function clearEditMode() {
+        setEditing(null);
+        form.record_type.disabled = false;
+        form.record_id.readOnly = false;
       }
 
       async function saveRecord(event) {
         event.preventDefault();
         const { type, payload } = payloadFromForm(new FormData(form));
-        const response = await fetch(`${apiBase}/api/records/${type}`, {
-          method: "POST",
+        const url = editing
+          ? `${apiBase}/api/records/${editing.record_type}/${editing.record_id}`
+          : `${apiBase}/api/records/${type}`;
+        const response = await fetch(url, {
+          method: editing ? "PATCH" : "POST",
           headers: { "content-type": "application/json" },
           body: JSON.stringify(payload),
         });
         const data = await response.json();
+        message.className = response.ok ? "ok" : "err";
         message.textContent = response.ok
-          ? `已儲存 ${data.record_id}`
+          ? `${editing ? "已更新" : "已儲存"} ${data.record_id}`
           : `錯誤：${data.error}`;
         if (response.ok) {
           form.reset();
+          clearEditMode();
+          syncTypeFields();
           await refresh();
         }
       }
 
       async function deleteRecord(type, id) {
+        const ok = window.confirm(`確定刪除 ${TYPE_LABEL[type] || type} / ${id}？`);
+        if (!ok) return;
         await fetch(`${apiBase}/api/records/${type}/${id}`, { method: "DELETE" });
+        if (editing?.record_id === id && editing?.record_type === type) {
+          form.reset();
+          clearEditMode();
+        }
         await refresh();
+      }
+
+      async function updateStatus(type, id, status) {
+        await fetch(`${apiBase}/api/records/${type}/${id}`, {
+          method: "PATCH",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ status }),
+        });
+        await refresh();
+      }
+
+      function renderExtra(record) {
+        const bits = [];
+        if (record.isbn) bits.push(`ISBN: ${escapeHtml(record.isbn)}`);
+        if (record.platform) bits.push(`平台: ${escapeHtml(record.platform)}`);
+        if (record.instructor) bits.push(`講師: ${escapeHtml(record.instructor)}`);
+        if (record.url) bits.push(`連結: ${escapeHtml(record.url)}`);
+        if (record.year) bits.push(`年份: ${escapeHtml(record.year)}`);
+        if (record.doi_or_url) bits.push(`DOI: ${escapeHtml(record.doi_or_url)}`);
+        if (record.key_takeaways) {
+          bits.push(`摘要: ${escapeHtml(record.key_takeaways)}`);
+        }
+        if (record.implementation_value) {
+          bits.push(`參考價值: ${escapeHtml(record.implementation_value)}`);
+        }
+        return bits.length ? `<p class="meta">${bits.join("<br />")}</p>` : "";
       }
 
       async function loadRecords() {
@@ -335,57 +516,126 @@
         }
         const response = await fetch(`${apiBase}/api/records?${params}`);
         const data = await response.json();
+        if (!data.items.length) {
+          cards.innerHTML = "<p class='meta'>尚無紀錄，可新增或載入範例資料。</p>";
+          return;
+        }
         cards.innerHTML = data.items
-          .map(
-            (record) => `
-              <article class="card">
-                <h3>${record.title}</h3>
+          .map((record) => {
+            const active =
+              editing &&
+              editing.record_type === record.record_type &&
+              editing.record_id === record.record_id
+                ? " editing"
+                : "";
+            return `
+              <article class="card${active}" data-type="${escapeHtml(record.record_type)}" data-id="${escapeHtml(record.record_id)}">
+                <h3>${escapeHtml(record.title)}</h3>
                 <div class="meta">
-                  ${record.record_type} / ${record.record_id}<br />
-                  ${stars(record.rating)} · ${record.genre || "未分類"} · ${record.status}
+                  ${escapeHtml(TYPE_LABEL[record.record_type] || record.record_type)} / ${escapeHtml(record.record_id)}<br />
+                  ${stars(record.rating)} · ${escapeHtml(record.genre || "未分類")} · ${escapeHtml(record.status)}
                 </div>
-                <p>${record.remark || "尚無心得"}</p>
+                ${renderExtra(record)}
+                <p>${escapeHtml(record.remark || "尚無心得")}</p>
                 <div class="tags">
                   ${(record.tags || [])
-                    .map((tag) => `<span class="tag">${tag}</span>`)
+                    .map(
+                      (tag) =>
+                        `<span class="tag" data-tag="${escapeHtml(tag)}">${escapeHtml(tag)}</span>`,
+                    )
                     .join("")}
                 </div>
                 <div class="actions">
-                  <button class="secondary" onclick="deleteRecord('${record.record_type}', '${record.record_id}')">刪除</button>
-                  <button onclick="markDone('${record.record_type}', '${record.record_id}')">完成</button>
+                  <button type="button" class="secondary" data-action="edit">編輯</button>
+                  <button type="button" class="secondary" data-action="delete">刪除</button>
+                  <button type="button" data-action="done">完成</button>
                 </div>
               </article>
-            `,
-          )
+            `;
+          })
           .join("");
-      }
-
-      async function markDone(type, id) {
-        await fetch(`${apiBase}/api/records/${type}/${id}`, {
-          method: "PATCH",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ status: "完成" }),
-        });
-        await refresh();
       }
 
       async function loadDashboard() {
         const response = await fetch(`${apiBase}/api/dashboard`);
         const data = await response.json();
+        const statusRows = Object.entries(data.by_status || {})
+          .map(([k, v]) => `<span class="tag">${escapeHtml(k)}: ${v}</span>`)
+          .join("");
+        const typeRows = Object.entries(data.by_type || {})
+          .map(([k, v]) => `<span class="tag">${escapeHtml(TYPE_LABEL[k] || k)}: ${v}</span>`)
+          .join("");
+        const tagRows = Object.entries(data.by_tag || {})
+          .map(
+            ([k, v]) =>
+              `<span class="tag" data-tag="${escapeHtml(k)}">${escapeHtml(k)} (${v})</span>`,
+          )
+          .join("");
         dashboard.innerHTML = `
-          <strong>總紀錄：</strong>${data.total}
-          <strong>進度：</strong>${JSON.stringify(data.by_status)}
-          <strong>類型：</strong>${JSON.stringify(data.by_type)}
-          <strong>高評分：</strong>${data.high_rated.join(", ") || "無"}
+          <div class="stats">
+            <div class="stat"><span>總紀錄</span><strong>${data.total}</strong></div>
+            <div class="stat"><span>已完成</span><strong>${(data.completed || []).length}</strong></div>
+            <div class="stat"><span>高評分</span><strong>${(data.high_rated || []).length}</strong></div>
+          </div>
+          <p><strong>進度</strong></p><div class="tags">${statusRows || "—"}</div>
+          <p><strong>類型</strong></p><div class="tags">${typeRows || "—"}</div>
+          <p><strong>標籤</strong></p><div class="tags">${tagRows || "—"}</div>
         `;
+      }
+
+      async function seedDemo() {
+        const response = await fetch(`${apiBase}/api/demo/seed`, { method: "POST" });
+        const data = await response.json();
+        message.className = "ok";
+        message.textContent = `已載入 ${data.inserted} 筆範例資料`;
+        await refresh();
       }
 
       async function refresh() {
         await Promise.all([loadRecords(), loadDashboard()]);
       }
 
+      cards.addEventListener("click", async (event) => {
+        const card = event.target.closest(".card");
+        if (!card) return;
+        const type = card.dataset.type;
+        const id = card.dataset.id;
+        const action = event.target.dataset.action;
+        if (action === "edit") {
+          const response = await fetch(`${apiBase}/api/records/${type}/${id}`);
+          if (response.ok) fillForm(await response.json());
+          return;
+        }
+        if (action === "delete") {
+          await deleteRecord(type, id);
+          return;
+        }
+        if (action === "done") {
+          await updateStatus(type, id, "完成");
+        }
+      });
+
+      document.addEventListener("click", (event) => {
+        const tag = event.target.dataset.tag;
+        if (!tag) return;
+        document.querySelector("#tag").value = tag;
+        refresh();
+      });
+
       form.addEventListener("submit", saveRecord);
+      form.record_type.addEventListener("change", syncTypeFields);
+      form.addEventListener("reset", () => {
+        clearEditMode();
+        syncTypeFields();
+      });
+      cancelEditBtn.addEventListener("click", () => {
+        form.reset();
+        clearEditMode();
+        syncTypeFields();
+      });
       document.querySelector("#search-button").addEventListener("click", refresh);
+      document.querySelector("#seed-button").addEventListener("click", seedDemo);
+      syncTypeFields();
       refresh();
     </script>
   </body>

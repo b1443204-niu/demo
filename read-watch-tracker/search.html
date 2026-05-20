@@ -1,0 +1,208 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>紀錄搜尋 — Read & Watch Tracker</title>
+    <style>
+      :root {
+        font-family: system-ui, "Segoe UI", sans-serif;
+        --bg: #f6f4ef;
+        --panel: #fffdf8;
+        --text: #28231f;
+        --muted: #756d63;
+        --brand: #6f4e37;
+        --line: #e7ded2;
+      }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+      }
+      main {
+        width: min(900px, calc(100% - 32px));
+        margin: 24px auto 48px;
+        display: grid;
+        gap: 16px;
+      }
+      section {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        padding: 18px;
+      }
+      .toolbar {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+        gap: 10px;
+      }
+      input,
+      select,
+      button {
+        width: 100%;
+        padding: 10px 12px;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        font: inherit;
+      }
+      button {
+        background: var(--brand);
+        color: #fff;
+        border: 0;
+        cursor: pointer;
+        font-weight: 700;
+      }
+      button.secondary {
+        background: #ece3d8;
+        color: var(--text);
+      }
+      .meta {
+        color: var(--muted);
+        font-size: 14px;
+      }
+      .results {
+        display: grid;
+        gap: 10px;
+      }
+      article {
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 12px;
+      }
+      .err {
+        color: #9a3412;
+      }
+      a {
+        color: var(--brand);
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <section>
+        <h1>紀錄搜尋</h1>
+        <p class="meta">
+          查詢本機 API 清單（需先啟動
+          <code>uvicorn</code>）。<a href="/">回主畫面</a>
+        </p>
+        <div class="toolbar">
+          <input id="keyword" placeholder="標題關鍵字" />
+          <input id="tag" placeholder="標籤" />
+          <input id="genre" placeholder="題材" />
+          <select id="status">
+            <option value="">全部進度</option>
+            <option value="想讀/想看">想讀/想看</option>
+            <option value="進行中">進行中</option>
+            <option value="完成">完成</option>
+          </select>
+          <select id="record-type">
+            <option value="">全部類型</option>
+            <option value="book">書籍</option>
+            <option value="movie">影片</option>
+            <option value="course">課程</option>
+            <option value="paper">文獻/論文</option>
+          </select>
+          <button id="search-btn" type="button">搜尋</button>
+          <button class="secondary" id="reset-btn" type="button">清除</button>
+        </div>
+        <p id="message" class="meta"></p>
+      </section>
+      <section>
+        <h2>搜尋結果</h2>
+        <div id="results" class="results meta">尚未搜尋</div>
+      </section>
+    </main>
+    <script>
+      const apiBase = window.location.origin.includes("127.0.0.1") ||
+        window.location.origin.includes("localhost")
+        ? ""
+        : "http://127.0.0.1:8000";
+
+      const TYPE_LABEL = {
+        book: "書籍",
+        movie: "影片",
+        course: "課程",
+        paper: "文獻",
+      };
+
+      function escapeHtml(value) {
+        return String(value ?? "")
+          .replaceAll("&", "&amp;")
+          .replaceAll("<", "&lt;")
+          .replaceAll(">", "&gt;")
+          .replaceAll('"', "&quot;");
+      }
+
+      function stars(rating) {
+        return rating ? "★".repeat(Number(rating)) : "未評分";
+      }
+
+      async function search() {
+        const message = document.querySelector("#message");
+        const results = document.querySelector("#results");
+        const params = new URLSearchParams();
+        for (const [key, id] of [
+          ["keyword", "#keyword"],
+          ["tag", "#tag"],
+          ["genre", "#genre"],
+          ["status", "#status"],
+          ["record_type", "#record-type"],
+        ]) {
+          const value = document.querySelector(id).value.trim();
+          if (value) params.set(key, value);
+        }
+        message.textContent = "查詢中...";
+        message.className = "meta";
+        try {
+          const response = await fetch(`${apiBase}/api/records?${params}`);
+          const data = await response.json();
+          if (!response.ok) {
+            throw new Error(data.detail || data.error || response.statusText);
+          }
+          if (!data.items.length) {
+            results.innerHTML = "<p>沒有符合的紀錄。</p>";
+          } else {
+            results.innerHTML = data.items
+              .map(
+                (record) => `
+                  <article>
+                    <strong>${escapeHtml(record.title)}</strong>
+                    <div class="meta">
+                      ${escapeHtml(TYPE_LABEL[record.record_type] || record.record_type)}
+                      / ${escapeHtml(record.record_id)} ·
+                      ${stars(record.rating)} ·
+                      ${escapeHtml(record.genre || "未分類")} ·
+                      ${escapeHtml(record.status)}
+                    </div>
+                    <p>${escapeHtml(record.remark || "尚無心得")}</p>
+                  </article>
+                `,
+              )
+              .join("");
+          }
+          message.textContent = `共 ${data.items.length} 筆`;
+        } catch (error) {
+          message.textContent = `無法連線 API：${error.message}（請確認已啟動 uvicorn）`;
+          message.className = "err";
+          results.innerHTML = "";
+        }
+      }
+
+      document.querySelector("#search-btn").addEventListener("click", search);
+      document.querySelector("#reset-btn").addEventListener("click", () => {
+        document.querySelector("#keyword").value = "";
+        document.querySelector("#tag").value = "";
+        document.querySelector("#genre").value = "";
+        document.querySelector("#status").value = "";
+        document.querySelector("#record-type").value = "";
+        document.querySelector("#results").innerHTML = "尚未搜尋";
+        document.querySelector("#message").textContent = "";
+      });
+      document.querySelectorAll(".toolbar input").forEach((node) => {
+        node.addEventListener("keydown", (event) => {
+          if (event.key === "Enter") search();
+        });
+      });
+    </script>
+  </body>
+</html>

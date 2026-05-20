@@ -1,3 +1,6 @@
-﻿uvicorn
+fastapi
+uvicorn[standard]
+psycopg[binary]
 pytest
 pytest-cov
+httpx
