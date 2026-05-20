@@ -6,14 +6,10 @@ from pathlib import Path
 
 import pytest
 
-from app import (
-    MediaRecord,
-    RecordStore,
-    ValidationError,
-    create_app,
-    health,
-    postgresql_schema,
-)
+from fastapi.testclient import TestClient
+
+from app import MediaRecord, RecordStore, ValidationError, create_app, health
+from domain import parse_query_string, postgresql_schema, seed_demo_records
 
 
 def make_store(tmp_path: Path) -> RecordStore:
@@ -224,20 +220,44 @@ def test_dashboard_counts_status_types_high_rated_and_tags(tmp_path: Path) -> No
     assert dashboard["by_tag"]["習慣"] == 1
 
 
-def test_asgi_app_exposes_json_api(tmp_path: Path) -> None:
+def test_parse_query_string_decodes_percent_encoding() -> None:
+    params = parse_query_string("status=%E9%80%B2%E8%A1%8C%E4%B8%AD&tag=AI")
+    assert params["status"] == "進行中"
+    assert params["tag"] == "AI"
+
+
+def test_seed_demo_records_is_idempotent(tmp_path: Path) -> None:
     store = make_store(tmp_path)
-    asgi_app = create_app(store)
+    first = seed_demo_records(store)
+    second = seed_demo_records(store)
+    assert first == 8
+    assert second == 0
+    assert store.get("book", "B001") is not None
+    assert store.get("paper", "P002") is not None
 
-    assert asgi_app.store is store
-    routes = asgi_app.routes()
-    assert "GET /healthz" in routes
-    assert "GET /api/records" in routes
-    assert "POST /api/records/{record_type}" in routes
 
-    response = asgi_app.handle_json(
-        "POST",
+def test_demo_seed_api_route(tmp_path: Path) -> None:
+    store = make_store(tmp_path)
+    client = TestClient(create_app(store))
+    response = client.post("/api/demo/seed")
+    assert response.status_code == 200
+    assert response.json()["inserted"] == 8
+    again = client.post("/api/demo/seed")
+    assert again.json()["inserted"] == 0
+
+
+def test_fastapi_exposes_json_api(tmp_path: Path) -> None:
+    store = make_store(tmp_path)
+    client = TestClient(create_app(store))
+
+    healthz = client.get("/healthz")
+    assert healthz.status_code == 200
+    assert healthz.json()["runtime"] == "fastapi"
+    assert healthz.json()["backend"] == "sqlite"
+
+    response = client.post(
         "/api/records/book",
-        {
+        json={
             "record_id": "B005",
             "title": "Clean Architecture",
             "rating": 5,
@@ -246,11 +266,11 @@ def test_asgi_app_exposes_json_api(tmp_path: Path) -> None:
             "remark": "邊界清楚",
         },
     )
-    assert response.status == 201
+    assert response.status_code == 201
 
-    listed = asgi_app.handle_json("GET", "/api/records?keyword=Clean", None)
-    assert listed.status == 200
-    assert json.loads(listed.body)["items"][0]["record_id"] == "B005"
+    listed = client.get("/api/records", params={"keyword": "Clean"})
+    assert listed.status_code == 200
+    assert listed.json()["items"][0]["record_id"] == "B005"
 
 
 def test_sqlite_database_persists_between_store_instances(tmp_path: Path) -> None:
